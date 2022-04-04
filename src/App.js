@@ -41,35 +41,23 @@ class App extends React.Component {
 //возвращает доску с рандомным чисом в ней
     placeRandom(board) {
         const emptyCoordinates = this.getEmptyCoordinates(board);
-        const randomCoordinate1 = emptyCoordinates[Math.floor(Math.random() * emptyCoordinates.length)];
-        board[randomCoordinate1[0]][randomCoordinate1[1]] = Math.random() > 0.5 ? 2 : 4;
+        const randomCoordinate = emptyCoordinates[Math.floor(Math.random() * emptyCoordinates.length)];
+        board[randomCoordinate[0]][randomCoordinate[1]] = Math.random() > 0.5 ? 2 : 4;
         return board;
     }
 
-    addAndMoveNumsInRowLeft(board, i) {
+    shoveRow(board) {
         let arrNumbers = []
         let isInArrNumber = false;
-        let k = 0;
         let checkModifiedRow = false;
-        for (let j = 0; j <= 3; j++) {
+        let k = 0;
+        let j = 0;
+        while(j <= 3) {
             //элемент строки матрицы - число?
-            if(board[i][j] !== null){
-                //в вспомогательном массиве нет чисел?
-                if(!isInArrNumber){
-                    arrNumbers.push(board[i][j]);
-                    isInArrNumber = true;
-                }
-                else{
-                    //У соседствующих элементов одинаковые значения?
-                    if(arrNumbers[k] === board[i][j]){
-                        arrNumbers[k] += board[i][j];
-                    }
-                    else{
-                        arrNumbers.push(board[i][j]);
-                        k++;
-                    }
-                }
+            if(board[j] !== null){
+                [arrNumbers, k, isInArrNumber, j] = this.checkIfArrEmpty(isInArrNumber, arrNumbers, k, board, j);
             }
+            j++;
         }
         if (arrNumbers.length !== 4) {
             checkModifiedRow = true;
@@ -81,15 +69,35 @@ class App extends React.Component {
         return [arrNumbers, checkModifiedRow];
     }
 
-    moveLeft() {
-        let {board} = this.state;
-        let newBoard = [];
-        let checkModifiedRow = false;
-        let checkModifiedMatrix = false;
-        for (let i = 0; i <= 3; i++) {
-            [newBoard[i], checkModifiedRow] = this.addAndMoveNumsInRowLeft(board,i);
-            checkModifiedMatrix = checkModifiedRow || checkModifiedMatrix;
+    checkIfArrEmpty(isInArrNumber, arrNumbers, k, board, j) {
+        //в вспомогательном массиве нет чисел?
+        if (!isInArrNumber) {
+            arrNumbers.push(board[j]);
+            isInArrNumber = true;
+        } else {
+            //Сложить одинаковые числа
+            [arrNumbers, k, j] = this.addUpIfSameNumber(arrNumbers, k, board, j);
         }
+        return [arrNumbers, k, isInArrNumber, j];
+    }
+
+    addUpIfSameNumber(arrNumbers, k, board, j) {
+        if(arrNumbers[k] === board[j]){
+            arrNumbers[k] += board[j];
+            if(j !== 3){
+                j++;
+                arrNumbers.push(board[j]);
+                k++;
+            }
+        }
+        else{
+            arrNumbers.push(board[j]);
+            k++;
+        }
+        return [arrNumbers, k, j];
+    }
+
+    checkGameOver(newBoard, board, checkModifiedMatrix){
         if(!checkModifiedMatrix) alert("Вы проиграли! Начините игру заново");
         else {
             if (JSON.stringify(newBoard) !== JSON.stringify(board)) {
@@ -99,38 +107,18 @@ class App extends React.Component {
         }
     }
 
-
-    addAndMoveNumsInRowRight(board, i) {
-        let arrNumbers = []
-        let isInArrNumber = false;
-        let k = 0;
+    moveLeft() {
+        let {board} = this.state;
+        let newBoard = [];
         let checkModifiedRow = false;
-        for (let j = 3; j >= 0; j--) {
-            if(board[i][j] !== null){
-                if(!isInArrNumber){
-                    arrNumbers.push(board[i][j]);
-                    isInArrNumber = true;
-                }
-                else{
-                    if(arrNumbers[k] === board[i][j]){
-                        arrNumbers[k] += board[i][j];
-                    }
-                    else{
-                        arrNumbers.push(board[i][j]);
-                        k++;
-                    }
-                }
-            }
+        let checkModifiedMatrix = false;
+        for (let i = 0; i <= 3; i++) {
+            [newBoard[i], checkModifiedRow] = this.shoveRow(board[i]);
+            checkModifiedMatrix = checkModifiedRow || checkModifiedMatrix;
         }
-        if (arrNumbers.length !== 4) {
-            checkModifiedRow = true;
-        }
-        for (let l = arrNumbers.length; l <= 3; l++) {
-            arrNumbers.push(null);
-        }
-
-        return [arrNumbers, checkModifiedRow];
+        this.checkGameOver(newBoard, board, checkModifiedMatrix);
     }
+
 
     moveRight() {
         let {board} = this.state;
@@ -138,17 +126,13 @@ class App extends React.Component {
         let checkModifiedRow = false;
         let checkModifiedMatrix = false;
         for (let i = 0; i <= 3; i++) {
-            [newBoard[i], checkModifiedRow] = this.addAndMoveNumsInRowRight(board,i);
+            newBoard[i] = Array.from(board[i]);
+            newBoard[i] = newBoard[i].reverse();
+            [newBoard[i], checkModifiedRow] = this.shoveRow(newBoard[i]);
             newBoard[i] = newBoard[i].reverse();
             checkModifiedMatrix = checkModifiedRow || checkModifiedMatrix;
         }
-        if(!checkModifiedMatrix) alert("Вы проиграли! Начините игру заново");
-        else {
-                if (JSON.stringify(newBoard) !== JSON.stringify(board)) {
-                    board = this.placeRandom(newBoard);
-                    this.setState({board});
-                }
-        }
+        this.checkGameOver(newBoard, board, checkModifiedMatrix);
     }
 //транспонирование матрицы
     transposition(newBoard){
@@ -170,20 +154,17 @@ class App extends React.Component {
         let newBoard = [];
         let checkModifiedRow = false;
         let checkModifiedMatrix = false;
+        let transposedMatrix = this.transposition(board);
         for (let i = 0; i <= 3; i++) {
-            [newBoard[i], checkModifiedRow] = this.addAndMoveNumsInRowRight(this.transposition(board),i);
+            newBoard[i] = Array.from(transposedMatrix[i]);
+            newBoard[i] = newBoard[i].reverse();
+            [newBoard[i], checkModifiedRow] = this.shoveRow(newBoard[i]);
             newBoard[i] = newBoard[i].reverse();
             checkModifiedMatrix = checkModifiedRow || checkModifiedMatrix;
         }
         newBoard = this.transposition(newBoard);
 
-        if(!checkModifiedMatrix) alert("Вы проиграли! Начините игру заново");
-        else {
-            if (JSON.stringify(newBoard) !== JSON.stringify(board)) {
-                board = this.placeRandom(newBoard);
-                this.setState({board});
-            }
-        }
+        this.checkGameOver(newBoard, board, checkModifiedMatrix);
     }
 
 
@@ -192,19 +173,14 @@ class App extends React.Component {
         let newBoard = [];
         let checkModifiedRow = false;
         let checkModifiedMatrix = false;
+        let transposedMatrix = this.transposition(board);
         for (let i = 0; i <= 3; i++) {
-            [newBoard[i], checkModifiedRow] = this.addAndMoveNumsInRowLeft(this.transposition(board),i);
+            [newBoard[i], checkModifiedRow] = this.shoveRow(transposedMatrix[i]);
             checkModifiedMatrix = checkModifiedRow || checkModifiedMatrix;
         }
         newBoard = this.transposition(newBoard);
 
-        if(!checkModifiedMatrix) alert("Вы проиграли! Начините игру заново");
-        else {
-            if (JSON.stringify(newBoard) !== JSON.stringify(board)) {
-                board = this.placeRandom(newBoard);
-                this.setState({board});
-            }
-        }
+        this.checkGameOver(newBoard, board, checkModifiedMatrix);
     }
 
     componentWillMount() {
